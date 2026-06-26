@@ -3,9 +3,8 @@ import uuid
 from datetime import datetime, timedelta
 
 # Generates a random calendar
-# TODO: Scale this up to create 100s of files
 
-ical = open("example.ical", "a")
+# ical = open("example.ical", "a")
 
 RANGE_START = datetime(2026, 9, 1)
 RANGE_END = datetime(2026, 12, 31)
@@ -15,7 +14,7 @@ busy_slots = []
 
 
 # Initializes the VCALENDAR component
-def ical_init():
+def ical_init(ical):
     # BEGIN:VCALENDAR
     # VERSION:2.0
     # -//Project Group 9//iCalendar ML Project 1.0//EN
@@ -24,7 +23,7 @@ def ical_init():
 
 
 # Finish the VCALENDAR component
-def ical_fin():
+def ical_fin(ical):
     # END:VCALENDAR
     ical.write("END:VCALENDAR")
     return
@@ -41,7 +40,7 @@ def conflict_resolve(slots):
 
 
 # Helper: Generates a random UID
-def gen_uid():
+def gen_uid(ical):
     ical.write("UID:" + str(uuid.uuid4()) + "\n")
     return
 
@@ -54,7 +53,7 @@ def gen_length():
 
 
 # Helper: Sets datetime stamp
-def default_dtstamp():
+def default_dtstamp(ical):
     # Appends default time
     # DTSTAMP:20260101T000000
     ical.write("DTSTAMP:20260101T000000\n")
@@ -127,13 +126,13 @@ def gen_rrule(dt_start, time_length):
 
 
 # VEVENT
-def gen_vevent():
+def gen_vevent(ical):
     # BEGIN:VEVENT
     ical.write("BEGIN:VEVENT\n")
     # UID:
-    gen_uid()
+    gen_uid(ical)
     # DTSTAMP:
-    default_dtstamp()
+    default_dtstamp(ical)
 
     # Generates ISO 8601 compiant start time and end time
     # Cannot generate events that end on the day after the starting day
@@ -178,12 +177,12 @@ def gen_vevent():
 
 
 # VTODO
-def gen_vtodo():
+def gen_vtodo(ical):
 
     # BEGIN:VTODO
     ical.write("BEGIN:VTODO\n")
     # UID:
-    gen_uid()
+    gen_uid(ical)
 
     # 0 is undefined, 1 is highest, 9 is lowest
     i = random.randint(0, 9)
@@ -211,13 +210,16 @@ def gen_vtodo():
 
 
 def main():
-    ical_init()
-    for _ in range(20):  # Can be modified
-        gen_vevent()
-    for _ in range(10):  # Can be modified
-        gen_vtodo()
-    ical_fin()
-    ical.close()
+    for i in range(200):
+        busy_slots.clear()  # Clean up from previous sets
+        ical = open("generated/example" + str(i) + ".ical", "w")
+        ical_init(ical)
+        for _ in range(20):  # Can be modified
+            gen_vevent(ical)
+        for _ in range(10):  # Can be modified
+            gen_vtodo(ical)
+        ical_fin(ical)
+        ical.close()
 
 
 if __name__ == "__main__":
