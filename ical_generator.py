@@ -78,7 +78,7 @@ def random_dtstart(time_length):
             time_length = timedelta(hours=17, minutes=55)  # 6:00 to 23:55
             latest_start_seconds = 24 * 3600 - int(time_length.total_seconds())
 
-        start_seconds = random.randint(0, latest_start_seconds)
+        start_seconds = random.randint(EARLIEST_START_SECONDS, latest_start_seconds)
 
         # Snap to 5-minute increments
         start_seconds -= start_seconds % 300
