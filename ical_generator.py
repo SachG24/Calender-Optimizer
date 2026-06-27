@@ -186,6 +186,10 @@ def gen_vtodo(ical):
 
     # 0 is undefined, 1 is highest, 9 is lowest
     i = random.randint(0, 9)
+    
+    # estimated duration (minutes)
+    duration = random.randint(30, 240)
+    
     # SUMMARY:
     if i == 0:
         ical.write("SUMMARY:Undefined piority task\n")
@@ -202,6 +206,9 @@ def gen_vtodo(ical):
 
     # PRIORITY
     ical.write("PRIORITY:" + str(i) + "\n")
+    
+    # DURATION
+    ical.write("X-DURATION:" + str(duration) + "\n")
 
     # END:VTODO
     ical.write("END:VTODO\n")
