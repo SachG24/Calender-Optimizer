@@ -217,12 +217,21 @@ def gen_vtodo(ical):
 
 
 def main():
-    for i in range(200):
+    
+    for i in range(200):  # Can be modified to scale
+    
+        # Generates events
         busy_slots.clear()  # Clean up from previous sets
-        ical = open("generated/example" + str(i) + ".ical", "w")
+        ical = open("generated/events/example" + str(i) + ".ical", "w")
         ical_init(ical)
         for _ in range(20):  # Can be modified
             gen_vevent(ical)
+        ical_fin(ical)
+        ical.close()
+
+        # Generates todos (tasks)
+        busy_slots.clear()
+        ical = open("generated/todos/example" + str(i) + ".ical", "w")
         for _ in range(10):  # Can be modified
             gen_vtodo(ical)
         ical_fin(ical)
