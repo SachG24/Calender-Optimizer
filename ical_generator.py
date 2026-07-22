@@ -232,6 +232,7 @@ def main():
         # Generates todos (tasks)
         busy_slots.clear()
         ical = open("generated/todos/example" + str(i) + ".ical", "w")
+        ical_init(ical)
         for _ in range(10):  # Can be modified
             gen_vtodo(ical)
         ical_fin(ical)
