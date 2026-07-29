@@ -28,20 +28,12 @@ def before_due(end, due):
     return True
 
 
-def construct_todo_event(todo):
-
-    # Should take the earliest slot DTSTART which gurantees a conflict.
-    # Probably a bad idea since we're assuming that busy_slots is already populated. Oh well.
-    start = min(slot[0] for slot in busy_slots)
-    end = start + timedelta(minutes=todo.duration) # in minutes
-    todo_slots.append((start, end))
-    return
-
-
 def construct_todo(todos):
 
     # NOTE: We will eventually need to preserve the todo summary
     for obj in todos:
+        # Should take the earliest slot DTSTART which gurantees a conflict.
+        # Probably a bad idea since we're assuming that busy_slots is already populated. Oh well.
         start = min(slot[0] for slot in busy_slots)
         end = start + timedelta(minutes=obj.duration) # in minutes
         todo_slots.append((start, end))
