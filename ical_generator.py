@@ -1,6 +1,7 @@
 import random
 import uuid
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 # Generates a random calendar
 
@@ -9,6 +10,7 @@ from datetime import datetime, timedelta
 RANGE_START = datetime(2026, 9, 1)
 RANGE_END = datetime(2026, 12, 31)
 EARLIEST_START_SECONDS = 6 * 3600  # All events generated starts at or after 6 AM
+WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 
 busy_slots = []
 
@@ -72,7 +74,6 @@ def random_dtstart(time_length):
         # Latest possible start time so the event still ends same-day
         latest_start_seconds = 24 * 3600 - int(time_length.total_seconds())
         if latest_start_seconds <= 0:
-
             # Event too long to fit in a single day; shrink it
             time_length = timedelta(hours=17, minutes=55)  # 6:00 to 23:55
             latest_start_seconds = 24 * 3600 - int(time_length.total_seconds())
@@ -92,6 +93,36 @@ def fmt(dt):
     return dt.strftime("%Y%m%dT%H%M%S")
 
 
+# Helper: Generates occurrences for a WEEKLY RRULE that has a BYDAY component
+def gen_weekly_byday_occurrences(dt_start, target_day_indices, max_count):
+    week_start = dt_start - timedelta(days=dt_start.weekday())  # Monday of dt_start's week
+    time_of_day = dt_start.time()
+
+    occurrences = []
+    week_offset = 0
+
+    # Safety cap so we can't loop forever if RANGE_END is somehow before dt_start
+    max_weeks = ((RANGE_END - week_start).days // 7) + 2
+
+    while len(occurrences) < max_count and week_offset <= max_weeks:
+        for d in target_day_indices:
+            occ_date = (week_start + timedelta(weeks=week_offset, days=d)).date()
+            occ_dt = datetime.combine(occ_date, time_of_day)
+
+            if occ_dt < dt_start:
+                continue  # don't emit occurrences before the actual start
+            if occ_dt > RANGE_END:
+                continue
+
+            occurrences.append(occ_dt)
+            if len(occurrences) >= max_count:
+                break
+
+        week_offset += 1
+
+    return occurrences
+
+
 # Helper: Randomly decides whether an event recurs
 def gen_rrule(dt_start, time_length):
 
@@ -100,20 +131,27 @@ def gen_rrule(dt_start, time_length):
         return None, [dt_start]
 
     freq = random.choice(["DAILY", "WEEKLY", "MONTHLY"])
-    step = {"DAILY": timedelta(days=1),
-            "WEEKLY": timedelta(weeks=1),
-            "MONTHLY": timedelta(days=30)}[freq]
+
+    # Internal helper steps
+    def step_func(dt, n):
+        if freq == "DAILY":
+            return dt + timedelta(days=n)
+        elif freq == "WEEKLY":
+            return dt + timedelta(weeks=n)
+        elif freq == "MONTHLY":
+            return dt + relativedelta(months=n)
 
     # Max occurrences that still fit before RANGE_END given the step size
-    days_left = (RANGE_END - dt_start).days
-    max_possible = max(1, int(days_left / step.days) + 1)
+    max_possible = 1
+    while step_func(dt_start, max_possible) <= RANGE_END:
+        max_possible += 1
+        
     count = random.randint(2, min(10, max_possible)) if max_possible > 1 else 1
-
     if count == 1:
         # Treat as N/A if  more than cannot be fit in the original occurrence
         return None, [dt_start]
 
-    occurrences = [dt_start + i * step for i in range(count)]
+    occurrences = [step_func(dt_start, i) for i in range(count)]
 
     # COUNT or UNTIL
     # When RRULE is no longer in effect
@@ -178,7 +216,6 @@ def gen_vevent(ical):
 
 # VTODO
 def gen_vtodo(ical):
-
     # BEGIN:VTODO
     ical.write("BEGIN:VTODO\n")
     # UID:
@@ -186,10 +223,10 @@ def gen_vtodo(ical):
 
     # 0 is undefined, 1 is highest, 9 is lowest
     i = random.randint(0, 9)
-    
+
     # estimated duration (minutes)
     duration = random.randint(30, 240)
-    
+
     # SUMMARY:
     if i == 0:
         ical.write("SUMMARY:Undefined piority task\n")
@@ -206,7 +243,7 @@ def gen_vtodo(ical):
 
     # PRIORITY
     ical.write("PRIORITY:" + str(i) + "\n")
-    
+
     # DURATION
     ical.write("X-DURATION:" + str(duration) + "\n")
 
@@ -217,22 +254,12 @@ def gen_vtodo(ical):
 
 
 def main():
-    
     for i in range(200):  # Can be modified to scale
-    
-        # Generates events
         busy_slots.clear()  # Clean up from previous sets
-        ical = open("generated/events/example" + str(i) + ".ical", "w")
+        ical = open("generated/example" + str(i) + ".ical", "w")
         ical_init(ical)
         for _ in range(20):  # Can be modified
             gen_vevent(ical)
-        ical_fin(ical)
-        ical.close()
-
-        # Generates todos (tasks)
-        busy_slots.clear()
-        ical = open("generated/todos/example" + str(i) + ".ical", "w")
-        ical_init(ical)
         for _ in range(10):  # Can be modified
             gen_vtodo(ical)
         ical_fin(ical)
