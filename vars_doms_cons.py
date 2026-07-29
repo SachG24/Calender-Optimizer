@@ -8,7 +8,6 @@ import parser
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-input = "Something" # TODO: decide how user is gonna input schedule (probably typed as a file name or something)
 todo_slots = [] # For todos converted into events
 busy_slots = [] # For events and already scheduled tasks (todos); stored as [(start, end), (start, end), ..., (start, end)]
 
@@ -28,6 +27,7 @@ def before_due(end, due):
         return False # You messed up
     return True
 
+
 def construct_todo_event(todo):
 
     # Should take the earliest slot DTSTART which gurantees a conflict.
@@ -37,16 +37,8 @@ def construct_todo_event(todo):
     todo_slots.append((start, end))
     return
 
+
 def construct_todo(todos):
-    """
-    class Todo:
-        uid: str
-        summary: str
-        due: Optional[datetime]
-        priority: int
-        duration: int
-        status: str
-    """
 
     # NOTE: We will eventually need to preserve the todo summary
     for obj in todos:
@@ -55,6 +47,7 @@ def construct_todo(todos):
         todo_slots.append((start, end))
 
     return
+
 
 # Helper function to parce rrule values
 def parse_rrule(rrule):
@@ -138,15 +131,14 @@ def test():
 
 def main():
     # Call parser
-    events, todos = parser.parse_calendar(input)
+    file_name = input("Input iCal file name: ")
+    events, todos = parser.parse_calendar(file_name)
 
     construct_busy(events)
     construct_todo(todos)
 
     # Comment out if it works
     test()
-
-
 
 
 # Basic algorithm
