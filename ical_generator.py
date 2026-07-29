@@ -1,6 +1,7 @@
 import random
 import uuid
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 # Generates a random calendar
 
@@ -124,53 +125,40 @@ def gen_weekly_byday_occurrences(dt_start, target_day_indices, max_count):
 
 # Helper: Randomly decides whether an event recurs
 def gen_rrule(dt_start, time_length):
+
     # 50% chance the event is a one-off (no RRULE)
     if random.random() < 0.5:
         return None, [dt_start]
 
     freq = random.choice(["DAILY", "WEEKLY", "MONTHLY"])
 
-    # Chance weekly freq has BYDAY
-    byday = None
-    if freq == "WEEKLY" and random.random() < 0.6:  # Can be adjusted
-        start_wd = dt_start.weekday()
-        other_days = [d for d in range(7) if d != start_wd]
-        extra = random.sample(other_days, random.randint(0, 2))
-        target_day_indices = sorted([start_wd] + extra)
-        byday = ",".join(WEEKDAY_CODES[d] for d in target_day_indices)
+    # Internal helper steps
+    def step_func(dt, n):
+        if freq == "DAILY":
+            return dt + timedelta(days=n)
+        elif freq == "WEEKLY":
+            return dt + timedelta(weeks=n)
+        elif freq == "MONTHLY":
+            return dt + relativedelta(months=n)
 
-    if byday is not None:
-        max_count = random.randint(2, 10)
-        occurrences = gen_weekly_byday_occurrences(dt_start, target_day_indices, max_count)
-        if len(occurrences) <= 1:
-            return None, [dt_start]
-        count = len(occurrences)
-    else:
+    # Max occurrences that still fit before RANGE_END given the step size
+    max_possible = 1
+    while step_func(dt_start, max_possible) <= RANGE_END:
+        max_possible += 1
+        
+    count = random.randint(2, min(10, max_possible)) if max_possible > 1 else 1
+    if count == 1:
+        # Treat as N/A if  more than cannot be fit in the original occurrence
+        return None, [dt_start]
 
-        step = {"DAILY": timedelta(days=1),
-                "WEEKLY": timedelta(weeks=1),
-                "MONTHLY": timedelta(days=30)}[freq]
-
-        # Max occurrences that still fit before RANGE_END given the step size
-        days_left = (RANGE_END - dt_start).days
-        max_possible = max(1, int(days_left / step.days) + 1)
-        count = random.randint(2, min(10, max_possible)) if max_possible > 1 else 1
-
-        if count == 1:
-            # Treat as N/A if  more than cannot be fit in the original occurrence
-            return None, [dt_start]
-
-        occurrences = [dt_start + i * step for i in range(count)]
+    occurrences = [step_func(dt_start, i) for i in range(count)]
 
     # COUNT or UNTIL
     # When RRULE is no longer in effect
-    rrule = "FREQ=" + freq
-    if byday is not None:
-        rrule += ";BYDAY=" + byday
     if random.random() < 0.5:
-        rrule += ";COUNT=" + str(count)
+        rrule = "FREQ=" + freq + ";COUNT=" + str(count)
     else:
-        rrule += ";UNTIL=" + fmt(occurrences[-1])
+        rrule = "FREQ=" + freq + ";UNTIL=" + fmt(occurrences[-1])
 
     return rrule, occurrences
 
