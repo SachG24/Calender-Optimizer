@@ -4,8 +4,7 @@
 # Beware: untested stuff but the basic ideas are here 
 
 import parser
-import decision_tree
-from datetime import datetime
+from datetime import datetime, timedelta
 
 """ 
 Reference from parser
@@ -33,10 +32,10 @@ events: List[Event] = []
 todos: List[Todo] = []
 =========================================================================
 Reference from decision tree
-FEATURE_NAMES = [
-    "priority",  # Stored as int?
-    "hours_until_due", # Stored as a float
-    "duration_minutes",  # Stored as a float
+FEATURE_NAMES = [ # everything here is stored as a float
+    "priority", # convert to int
+    "hours_until_due",
+    "duration_minutes",
     "slack_hours",
 ]
 LABEL_NAMES = {
@@ -46,17 +45,48 @@ LABEL_NAMES = {
 }
 """
 
-input = 0
-slots = []
-busy_slots = []
+# Ripped from ical_generator
+def conflict_resolve(slots):
+    # Returns true if generated event does overlap with previous events
+    for (time_start, time_end) in slots:
+        for (busy_start, busy_end) in busy_slots:
+            if time_start < busy_end and time_end > busy_start:
+                return True
+    return False
 
-# Call parser, we're only interested in when time events start and end 
-events, todos = parse_calendar(input)
+# Helper for constructing 
+def rrule_helper(dt_start, time_length):
+    return
 
-# Call decision tree for todos
+input = "Something" # TODO: decide how user is gonna input schedule (probably typed as a file name or something)
+todo_slots = [] # For todos converted into events
+busy_slots = [] # For events and already scheduled tasks (todos); stored as [(start, end), (start, end), ..., (start, end)]
+
+# Call parser
+events, todos = parser.parse_calendar(input)
+
+idx = 0
+# Loads every event into busy_slots
+for obj in events:
+    start = obj.start
+    end = obj.end
+
+    # Check recurrance
+    if obj.rrule is None:
+        busy_slots[idx] = (start, end)
+        idx += 1
+    else:
+        # "DAILY", "WEEKLY", "MONTHLY"
+        # "COUNT", "UNTIL"
+        temp_slots = []
+        idx += 1
+
+
+
 
 # Basic algorithm
-# Priority: 
+# Priority: Schedule first -> Schedule soon -> Schedule later
+# If todo cannot be done in one whole event, break it up s.t. the remainder can be scheduled in another slot
 
 if __name__ == "__main__":
     main()
