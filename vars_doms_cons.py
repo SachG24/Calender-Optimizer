@@ -1,27 +1,12 @@
-# variables and domains: basically setting up the tasks and figuring out which free time slots each one can go into
-# constraints: the rules, like no overlapping tasks, tasks have to fit in a slot, be done before the due date, etc
-
 # Beware: untested stuff but the basic ideas are here. Remove this once this is working
+
+# Variables: VTODO with X-DURATION
+# Domains: Valid DTSTART and DTEND for VTODO turned into VEVENT(s)
+# Constrains: No overlapping tasks, must be done before the due date
 
 import parser
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-
-
-""" 
-Reference from decision tree
-FEATURE_NAMES = [ # everything here is stored as a float
-    "priority", # convert to int
-    "hours_until_due",
-    "duration_minutes",
-    "slack_hours",
-]
-LABEL_NAMES = {
-    0: "Schedule later",
-    1: "Schedule soon",
-    2: "Schedule first",
-}
-"""
 
 input = "Something" # TODO: decide how user is gonna input schedule (probably typed as a file name or something)
 todo_slots = [] # For todos converted into events
@@ -37,6 +22,40 @@ def conflict_resolve(slots):
     return False
 
 
+# Todos must be done before the due date
+def before_due(end, due):
+    if end > due:
+        return False # You messed up
+    return True
+
+def construct_todo_event(todo):
+
+    # Should take the earliest slot DTSTART which gurantees a conflict.
+    # Probably a bad idea since we're assuming that busy_slots is already populated. Oh well.
+    start = min(slot[0] for slot in busy_slots)
+    end = start + timedelta(minutes=todo.duration) # in minutes
+    todo_slots.append((start, end))
+    return
+
+def construct_todo(todos):
+    """
+    class Todo:
+        uid: str
+        summary: str
+        due: Optional[datetime]
+        priority: int
+        duration: int
+        status: str
+    """
+
+    # NOTE: We will eventually need to preserve the todo summary
+    for obj in todos:
+        start = min(slot[0] for slot in busy_slots)
+        end = start + timedelta(minutes=obj.duration) # in minutes
+        todo_slots.append((start, end))
+
+    return
+
 # Helper function to parce rrule values
 def parse_rrule(rrule):
     params = {}
@@ -49,7 +68,6 @@ def parse_rrule(rrule):
 # Helper for constructing start and end 
 def rrule_helper(start, end, params):
 
-    # placeholder
     length = end - start
     freq = params.get("FREQ")
     interval = int(params.get("INTERVAL", 1)) # Needed for step function
@@ -107,36 +125,26 @@ def construct_busy(events):
             rrule_helper(start, end, params)
     return
 
+# Sanity check
+def test():
+    
+    print("===[Todo slots]===")
+    for obj in todo_slots:
+        print(obj)
+    print("===[Busy slots]===")
+    for obj in busy_slots:
+        print(obj)
+    
 
 def main():
     # Call parser
-    """
-    Reference from parser
-    @dataclass
-        class Event:
-        uid: str
-        summary: str
-        start: datetime
-        end: datetime
-        location: str
-        rrule: Optional[str]
-
-    @dataclass
-    class Todo:
-        uid: str
-        summary: str
-        due: Optional[datetime]
-        priority: int
-        duration: int
-        status: str
-
-    def parse_calendar(filename: str) -> tuple[List[Event], List[Todo]]:
-    events: List[Event] = []
-    todos: List[Todo] = []
-    """
     events, todos = parser.parse_calendar(input)
 
     construct_busy(events)
+    construct_todo(todos)
+
+    # Comment out if it works
+    test()
 
 
 
