@@ -1,6 +1,7 @@
 import random
 import uuid
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 # Generates a random calendar
 
@@ -100,20 +101,27 @@ def gen_rrule(dt_start, time_length):
         return None, [dt_start]
 
     freq = random.choice(["DAILY", "WEEKLY", "MONTHLY"])
-    step = {"DAILY": timedelta(days=1),
-            "WEEKLY": timedelta(weeks=1),
-            "MONTHLY": timedelta(days=30)}[freq]
+
+    # Internal helper steps
+    def step_func(dt, n):
+        if freq == "DAILY":
+            return dt + timedelta(days=n)
+        elif freq == "WEEKLY":
+            return dt + timedelta(weeks=n)
+        elif freq == "MONTHLY":
+            return dt + relativedelta(months=n)
 
     # Max occurrences that still fit before RANGE_END given the step size
-    days_left = (RANGE_END - dt_start).days
-    max_possible = max(1, int(days_left / step.days) + 1)
+    max_possible = 1
+    while step_func(dt_start, max_possible) <= RANGE_END:
+        max_possible += 1
+        
     count = random.randint(2, min(10, max_possible)) if max_possible > 1 else 1
-
     if count == 1:
         # Treat as N/A if  more than cannot be fit in the original occurrence
         return None, [dt_start]
 
-    occurrences = [dt_start + i * step for i in range(count)]
+    occurrences = [step_func(dt_start, i) for i in range(count)]
 
     # COUNT or UNTIL
     # When RRULE is no longer in effect
