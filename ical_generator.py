@@ -174,7 +174,26 @@ def gen_vevent(ical):
     # END:VEVENT
     ical.write("END:VEVENT\n")
     return
-
+def gen_duration(priority, due_date):
+    #assume high priority + far due date make for longer durations
+    effective_priority = 5 if priority == 0 else priority
+ 
+    # priority 1 -> +90 mins, priority 9 -> -90 mins, priority 5 -> +/- 0 mins
+    priority_effect = (5 - effective_priority) * 22.5
+ 
+    # more days until due -> larger task, up to a cap
+    days_until_due = max(0, (due_date - RANGE_START).days)
+    urgency = min(days_until_due, 90) * 0.6  # capped at 90 days out
+ 
+    base = 100  # baseline task length in minutes
+    noise = random.gauss(0, 25)  # realistic random variation 
+ 
+    duration = base + priority_effect + urgency + noise
+ 
+    # split to 5 min increments and fit to original range [30, 240]
+    duration = round(duration / 5) * 5
+    duration = max(30, min(240, int(duration)))
+    return duration
 
 # VTODO
 def gen_vtodo(ical):
@@ -188,7 +207,7 @@ def gen_vtodo(ical):
     i = random.randint(0, 9)
     
     # estimated duration (minutes)
-    duration = random.randint(30, 240)
+    duration = gen_duration(i,due_dt)
     
     # SUMMARY:
     if i == 0:
