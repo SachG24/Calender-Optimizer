@@ -29,16 +29,23 @@ def before_due(end, due):
 
 
 def construct_todo(todos):
+    free_slots = get_free_slots()
+    domains = {}
 
     # NOTE: We will eventually need to preserve the todo summary
     for obj in todos:
+        domains[obj.uid] = []
         # Should take the earliest slot DTSTART which gurantees a conflict.
         # Probably a bad idea since we're assuming that busy_slots is already populated. Oh well.
-        start = min(slot[0] for slot in busy_slots)
-        end = start + timedelta(minutes=obj.duration) # in minutes
-        todo_slots.append((start, end))
+        for free_start, free_end in free_slots:
+            end = free_start + timedelta(minutes=obj.duration)
+            if end > free_end:
+                continue
+            if obj.due is not None and not before_due(end, obj.due):
+                continue
+            domains[obj.uid].append((free_start, end))
 
-    return
+    return domains
 
 
 # Helper function to parce rrule values
@@ -57,8 +64,7 @@ def rrule_helper(start, end, params):
     freq = params.get("FREQ")
     interval = int(params.get("INTERVAL", 1)) # Needed for step function
     count = int(params["COUNT"]) if "COUNT" in params else None
-    until = datetime.fromisoformat(params["UNTIL"]) if "UNTIL" in params else None
-
+    until = (datetime.strptime (params["UNTIL"], "%Y%m%dT%H%M%S") if "UNTIL" in params else None)
     # Internal helper for steps
     def step_func(n):
         # returns the nth occurrence's start time
@@ -108,14 +114,53 @@ def construct_busy(events):
         else:
             params = parse_rrule(obj.rrule)
             rrule_helper(start, end, params)
+            
+    busy_slots.sort(key=lambda slot: slot[0])
     return
 
+def get_free_slots():
+    free_slots = []
+    if not busy_slots:
+        return free_slots
+
+    days = {}
+    for start, end in busy_slots:
+        days.setdefault(start.date(), []).append((start, end))
+
+    range_start = busy_slots[0][0].date()
+    range_end = busy_slots[-1][1].date()
+
+    current_day = range_start
+    while current_day <= range_end:
+        slots = sorted(days.get(current_day, []), key=lambda s: s[0])
+        day_start = datetime.combine(current_day, datetime.min.time()).replace(hour=6)
+        day_end = datetime.combine(current_day, datetime.min.time()).replace(hour=23, minute=59, second=59)
+
+        current = day_start
+        for start, end in slots:
+            if current < start:
+                free_slots.append((current, start))
+            if end > current:
+                current = end
+        if current < day_end:
+            free_slots.append((current, day_end))
+
+        current_day += timedelta(days=1)
+
+    return free_slots
+
 # Sanity check
-def test():
+def test(domains):
+    print("===[Domains]===")
+    for uid, slots in domains.items():
+        print(uid)
+        for slot in slots:
+            print("   ", slot)
     
-    print("===[Todo slots]===")
-    for obj in todo_slots:
-        print(obj)
+    print("===[Free slots]===")
+    for slot in get_free_slots():
+        print(slot)
+
     print("===[Busy slots]===")
     for obj in busy_slots:
         print(obj)
@@ -127,10 +172,15 @@ def main():
     events, todos = parser.parse_calendar(file_name)
 
     construct_busy(events)
-    construct_todo(todos)
+    domains = construct_todo(todos)
+
+    for uid, slots in domains.items():
+        print(uid)
+        for slot in slots:
+            print("   ", slot)
 
     # Comment out if it works
-    test()
+    test(domains)
 
 
 # Basic algorithm
