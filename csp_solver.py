@@ -1,8 +1,12 @@
 # part 3: CSP solver. backtracking with MRV, LCV heuristics
 
+import parser
 from parser import parse_calendar
 from vars_doms_cons import construct_busy, construct_todo
 from heuristics import select_mrv_variable, order_lcv_values
+from datetime import datetime
+import uuid
+from ical_generator import fmt
 
 
 #same idea as conflict_resolve in vars_doms_cons, just for two single slots
@@ -74,11 +78,36 @@ def solve(domains):
 
     return result, unschedulable
 
+def export_schedule(solution, todos, output_path="generated/final_schedule.ical"):
+    todo_uids = {todo.uid: todo for todo in todos}
+
+    with open(output_path, "w") as f:
+        f.write("BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Project Group 9//CSP Schedule Export//EN\n") #same format
+
+        for uid, (start, end) in sorted(solution.items(), key=lambda kv: kv[1][0]): #gets the start from the second tuple and sorts 
+            todo = todo_uids.get(uid)
+            summary = todo.summary if todo else uid
+
+            f.write("BEGIN:VEVENT\n")
+            f.write("UID:" + str(uuid.uuid4()) + "\n") #generate new uid
+            f.write("DTSTAMP:20260101T000000\n") #default at start of this year maybe change later
+            f.write("DTSTART:" + fmt(start) + "\n")
+            f.write("DTEND:" + fmt(end) + "\n")
+            f.write("SUMMARY:" + summary + "\n")
+            f.write("END:VEVENT\n")
+
+        f.write("END:VCALENDAR")
+
 
 def main():
     #call parser
     file_name = input("Input iCal file name: ")
-    events, todos = parse_calendar(file_name)
+    # get events path  and todos path seperately
+    events_path = f"generated/events/{file_name}.ical"
+    todos_path = f"generated/todos/{file_name}.ical"
+
+    events, _ = parser.parse_calendar(events_path)
+    _, todos = parser.parse_calendar(todos_path)
 
     construct_busy(events)
     domains = construct_todo(todos)
@@ -98,6 +127,9 @@ def main():
     print("===[Schedule]===")
     for uid, (start, end) in sorted(solution.items(), key=lambda kv: kv[1][0]):
         print(uid, ":", start, "->", end)
+
+    export_schedule(solution, todos)
+    print("\nExported schedule to generated/final_schedule.ical")
 
 
 if __name__ == "__main__":
