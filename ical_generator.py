@@ -234,7 +234,7 @@ def gen_vtodo(ical):
         ical.write("SUMMARY:Level " + str(i) + " piority task\n")
 
     # DUE:
-    day_offset = random.randint(0, (RANGE_END - RANGE_START).days)
+    day_offset = random.randint(0, 30)
     due_dt = RANGE_START + timedelta(days=day_offset, seconds=random.randint(0, 86399))
     ical.write("DUE:" + fmt(due_dt) + "\n")
 
@@ -258,9 +258,9 @@ def main():
         busy_slots.clear()  # Clean up from previous sets
         ical = open("generated/example" + str(i) + ".ical", "w")
         ical_init(ical)
-        for _ in range(20):  # Can be modified
+        for _ in range(40):  # Can be modified
             gen_vevent(ical)
-        for _ in range(10):  # Can be modified
+        for _ in range(30):  # Can be modified
             gen_vtodo(ical)
         ical_fin(ical)
         ical.close()
