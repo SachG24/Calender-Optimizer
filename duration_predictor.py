@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline
 from parser import parse_calendar
  
  
-def load_all_todos(pattern="generated/*.ical"):
+def load_all_todos(pattern="generated/todos/*.ical"):
     # Parse every generated calendar file and collect all Todo objects
     all_todos = []
     for filepath in sorted(glob.glob(pattern)):

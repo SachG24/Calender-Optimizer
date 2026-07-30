@@ -205,27 +205,27 @@ def gen_vtodo(ical):
 
     # 0 is undefined, 1 is highest, 9 is lowest
     i = random.randint(0, 9)
+
     
-    # estimated duration (minutes)
-    duration = gen_duration(i,due_dt)
-    
+    day_offset = random.randint(0, (RANGE_END - RANGE_START).days)
+    due_date = RANGE_START + timedelta(days=day_offset, seconds=random.randint(0, 86399))
+    ical.write("DUE:" + fmt(due_date) + "\n")
+
+    # estimated duration (minutes) — depends on priority + due_date
+    duration = gen_duration(i, due_date)
+
     # SUMMARY:
     if i == 0:
         ical.write("SUMMARY:Undefined piority task\n")
     else:
         ical.write("SUMMARY:Level " + str(i) + " piority task\n")
 
-    # DUE:
-    day_offset = random.randint(0, (RANGE_END - RANGE_START).days)
-    due_dt = RANGE_START + timedelta(days=day_offset, seconds=random.randint(0, 86399))
-    ical.write("DUE:" + fmt(due_dt) + "\n")
-
     # STATUS:
     ical.write("STATUS:NEEDS-ACTION\n")  # Default state
 
     # PRIORITY
     ical.write("PRIORITY:" + str(i) + "\n")
-    
+
     # DURATION
     ical.write("X-DURATION:" + str(duration) + "\n")
 
