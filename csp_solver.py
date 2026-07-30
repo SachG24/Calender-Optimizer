@@ -1,7 +1,8 @@
-# part 3: CSP solver. Plain backtracking, no heuristics yet
+# part 3: CSP solver. backtracking with MRV, LCV heuristics
 
 from parser import parse_calendar
 from vars_doms_cons import construct_busy, construct_todo
+from heuristics import select_mrv_variable, order_lcv_values
 
 
 #same idea as conflict_resolve in vars_doms_cons, just for two single slots
@@ -25,12 +26,30 @@ def is_consistent(uid, candidate, assignment):
 def backtrack(assignment, unassigned, domains):
     # nothing left to place so this assignment is a full solution
     if not unassigned:
-        return dict(assignment)  #cpy it or the undos below wreck the answer
+        return dict(assignment)  #copy it or the undos below wreck the answer
 
-    uid = unassigned[0]     #just takes the next one in order, could be smarter
-    rest = unassigned[1:]
+    #MRV, choose the todo with the fewest legal remaining slots
+    uid = select_mrv_variable(
+        unassigned,
+        domains,
+        assignment,
+        is_consistent,
+    )
 
-    for candidate in domains[uid]:
+    # remove the selected todo from the remaining list
+    rest = [other_uid for other_uid in unassigned if other_uid != uid]
+
+    #LCV, try the slot that blocks the fewest options first
+    ordered_candidates = order_lcv_values(
+        uid,
+        unassigned,
+        domains,
+        assignment,
+        is_consistent,
+        overlaps,
+    )
+
+    for candidate in ordered_candidates:
         if is_consistent(uid, candidate, assignment):
             assignment[uid] = candidate
 
