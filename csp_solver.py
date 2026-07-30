@@ -67,16 +67,50 @@ def backtrack(assignment, unassigned, domains):
     return None     #every slot failed, previous level has to try something else
 
 
+#ical priority
+def priority_of(uid, priorities):
+    p = priorities.get(uid, 0)
+    if p == 0:
+        return 5    #undefined sits in the middle instead of counting as urgent
+    return p
+
+
 #Entry point, hand it the domains dict and it does the rest
-def solve(domains):
+#priorities is optional
+def solve(domains, priorities=None):
+    if priorities is None:
+        priorities = {}
+
     #todos with zero candidates are hopeless no matter what order we try, so pull them out first instead of wasting search on them
     schedulable = {uid: slots for uid, slots in domains.items() if slots}
     unschedulable = [uid for uid, slots in domains.items() if not slots]
 
-    unassigned = list(schedulable.keys())
-    result = backtrack({}, unassigned, schedulable)
+    #most important first, so the ones we end up dropping are the least important
+    order = sorted(
+        schedulable,
+        key=lambda uid: (priority_of(uid, priorities), str(uid)),
+    )
 
-    return result, unschedulable
+    kept = {}       #domains of the todos we've managed to keep so far
+    solution = {}
+    dropped = []
+
+    #add one todo at a time and only keep it if everything still fits together.
+    #this way two todos fighting over the same slot only costs us one of them instead of killing the whole schedule
+    for uid in order:
+        trial = dict(kept)
+        trial[uid] = schedulable[uid]
+
+        result = backtrack({}, list(trial.keys()), trial)
+
+        if result is None:
+            dropped.append(uid)     #cant fit this one alongside the rest
+        else:
+            kept = trial
+            solution = result
+
+    return solution, unschedulable, dropped
+
 
 def export_schedule(solution, todos, output_path="generated/final_schedule.ical"):
     todo_uids = {todo.uid: todo for todo in todos}
@@ -101,27 +135,29 @@ def export_schedule(solution, todos, output_path="generated/final_schedule.ical"
 
 def main():
     #call parser
-    file_name = input("Input iCal file name: ")
-    # get events path  and todos path seperately
-    events_path = f"generated/events/{file_name}.ical"
-    todos_path = f"generated/todos/{file_name}.ical"
-
-    events, _ = parser.parse_calendar(events_path)
-    _, todos = parser.parse_calendar(todos_path)
+    file_name = input("Input iCal file name (no .ical): ")
+    events, todos = parser.parse_calendar(f"generated/{file_name}.ical")
 
     construct_busy(events)
     domains = construct_todo(todos)
 
-    solution, unschedulable = solve(domains)
+    priorities = {obj.uid: obj.priority for obj in todos}
+    summaries = {obj.uid: obj.summary for obj in todos}
+
+    solution, unschedulable, dropped = solve(domains, priorities)
 
     if unschedulable:
-        print("===[Unschedulable]===")
+        print("===[No possible slot]===")
         for uid in unschedulable:
-            print("   ", uid)
+            print("   ", uid, "|", summaries.get(uid, ""))
 
-    #if two todos really can't both fit we get nothing back at all instead of the ones that would've worked
-    if solution is None:
-        print("No valid schedule found")
+    if dropped:
+        print("===[Dropped, clashed with something more important]===")
+        for uid in dropped:
+            print("   ", uid, "|", summaries.get(uid, ""))
+
+    if not solution:
+        print("Nothing could be scheduled")
         return
 
     print("===[Schedule]===")
